@@ -12,7 +12,7 @@ const RouletteGame = lazy(() => import('./games/RouletteGame'))
 const CrashGame = lazy(() => import('./games/CrashGame'))
 
 // API base URL
-const API_BASE = 'https://notaryton.com'
+const API_BASE = 'https://casino-backend-vn8d.vercel.app'
 
 // Loading skeleton for games
 function GameLoading() {
@@ -290,7 +290,7 @@ function App() {
         {/* Header */}
         <header className="text-center mb-6">
           <h1 className="font-casino text-3xl font-black neon-text tracking-wider">
-            MEMESEAL
+            Froog
           </h1>
           <p className="text-lg neon-pink font-casino">CASINO</p>
           <FrogDealer />
@@ -403,7 +403,7 @@ function App() {
 
         {/* Footer */}
         <footer className="mt-8 text-center text-xs text-matrix-green/30">
-          <p>POWERED BY MEMESEAL x TON</p>
+          <p>POWERED BY Froog x TON</p>
           <p>gamble responsibly you degen</p>
         </footer>
       </div>
