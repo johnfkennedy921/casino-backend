@@ -1,22 +1,19 @@
-// Import necessary functions from React
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react'; // Add 'lazy' here
+import React, { useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import MatrixRain from './components/MatrixRain';
 import FrogDealer from './components/FrogDealer';
 import LotteryCountdown from './components/LotteryCountdown';
 import PotDisplay from './components/PotDisplay';
 import LoyaltyCard from './components/LoyaltyCard';
-import { db, doc, getDoc, setDoc, updateDoc, increment } from './firebase'; // Import Firestore and Firestore operations
+import Decimal from 'decimal.js'; // Import Decimal.js
 
 // Lazy load games - only loaded when user selects them
 const SlotsGame = lazy(() => import('./games/SlotsGame'));
 const RouletteGame = lazy(() => import('./games/RouletteGame'));
 const CrashGame = lazy(() => import('./games/CrashGame'));
 
-// Rest of the code remains the same...
-
 // API base URL
-const API_BASE = 'https://casino-backend-vn8d.vercel.app';
+const API_BASE = 'https://casino-backend-1-j04v.onrender.com';
 
 // Loading skeleton for games
 function GameLoading() {
@@ -29,7 +26,8 @@ function GameLoading() {
 }
 
 // Buy Chips Modal Component
-function BuyChipsModal({ onClose, paymentAddress }) {
+function BuyChipsModal({ onClose }) {
+  const paymentAddress = 'UQD47vLueaRaz5PrUE7U8Y6PxaGdnP_NF0GmebUK8stehXna'; // Hardcoded address
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
       <div className="game-card max-w-sm w-full p-6">
@@ -54,7 +52,7 @@ function BuyChipsModal({ onClose, paymentAddress }) {
 }
 
 function App() {
-  const [tonConnectUI] = useTonConnectUI();
+  const { connect, disconnect, connected } = useTonConnectUI();
   const wallet = useTonWallet();
   const [activeGame, setActiveGame] = useState(null);
   const [balance, setBalance] = useState(0);
@@ -63,6 +61,9 @@ function App() {
   const [showBuyChips, setShowBuyChips] = useState(false);
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Set default bet amount (2 TON)
+  const defaultBetAmount = 2;
 
   // Get Telegram user ID on mount
   useEffect(() => {
@@ -79,7 +80,6 @@ function App() {
       }
     }
     
-    // Fallback: use wallet address hash or generate guest ID
     if (!userId && wallet?.account?.address) {
       const hash = wallet.account.address.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
       setUserId(Math.abs(hash) % 1000000000);
@@ -93,22 +93,20 @@ function App() {
     }
   }, [wallet, userId]);
 
-  // Fetch user's chip balance from Firestore
+  // Fetch user's chip balance
   const fetchBalance = useCallback(async () => {
     if (!userId) return;
-
+    
     try {
-      const userRef = doc(db, 'users', userId.toString());  // Reference to Firestore document
-      const userDoc = await getDoc(userRef);  // Fetch the document
-
-      if (userDoc.exists()) {
-        setBalance(userDoc.data().balance);  // Set balance from Firestore
-      } else {
-        await setDoc(userRef, { balance: 100 });  // Set an initial balance if the user does not exist
-        setBalance(100);
+      const res = await fetch(`${API_BASE}/api/v1/casino/balance/${userId}`);
+      const data = await res.json();
+      if (data.success) {
+        // Use Decimal.js for precise rounding
+        const fixedBalance = new Decimal(data.chips).toFixed(2);  // Round to 2 decimal places
+        setBalance(fixedBalance);
       }
-    } catch (error) {
-      console.error('Error fetching balance:', error);
+    } catch (e) {
+      console.log('Using local balance');
     } finally {
       setLoading(false);
     }
@@ -116,36 +114,12 @@ function App() {
 
   useEffect(() => {
     if (userId) {
-      fetchBalance();  // Fetch balance when userId is set
+      fetchBalance(); // Fetch balance when userId is set
     }
   }, [userId, fetchBalance]);
 
-  // Fetch pot size from API
-  useEffect(() => {
-    const fetchPot = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/v1/lottery/pot`);
-        const data = await res.json();
-        if (data.pot_stars) setPotSize(data.pot_stars);
-      } catch (e) {
-        console.log('Using mock pot size');
-      }
-    };
-    fetchPot();
-    const interval = setInterval(fetchPot, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const connectWallet = async () => {
-    try {
-      await tonConnectUI.openModal();
-    } catch (e) {
-      console.error('Wallet connect error:', e);
-    }
-  };
-
   // Handle bet placement
-  const handleBet = async (betAmount, gameType, result, payout = 0) => {
+  const handleBet = async (betAmount = defaultBetAmount, gameType, result, payout = 0) => {
     if (!userId) {
       alert('Please connect wallet or open in Telegram');
       return false;
@@ -157,6 +131,7 @@ function App() {
     }
 
     try {
+      console.log("Betting Amount: ", betAmount);
       const res = await fetch(`${API_BASE}/api/v1/casino/play`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -168,27 +143,26 @@ function App() {
           payout: Math.floor(payout),
         }),
       });
+
       const data = await res.json();
+      console.log('API Response:', data);
 
       if (data.success) {
-        setBalance(data.chips);
-        setPotSize(prev => prev + Math.floor(betAmount * 0.2));
+        // Use Decimal.js for precise rounding
+        const newBalance = new Decimal(data.chips).toFixed(1);  // Round to 2 decimal places
+        setBalance(newBalance);
+        setPotSize(prev => prev + Math.floor(betAmount * 0.2)); // Update pot size
         return true;
       } else {
-        if (data.error === 'Insufficient chips') {
-          setShowBuyChips(true);
-        }
+        console.error('Bet failed:', data.error);
+        alert('Bet failed, try again');
         return false;
       }
     } catch (e) {
       console.error('Bet error:', e);
+      alert('Error while placing bet. Please try again.');
       return false;
     }
-  };
-
-  const handleChipsPurchased = (amount) => {
-    setBalance(prev => prev + amount);
-    setTimeout(fetchBalance, 2000);
   };
 
   const games = [
@@ -199,13 +173,10 @@ function App() {
 
   const ActiveGameComponent = activeGame ? games.find(g => g.id === activeGame)?.component : null;
 
-  // Set your crypto wallet address
-  const paymentAddress = "UQD47vLueaRaz5PrUE7U8Y6PxaGdnP_NF0GmebUK8stehXna";  // Replace this with your actual wallet address
-
   return (
     <div className="min-h-screen bg-matrix-dark relative overflow-hidden">
       <MatrixRain />
-      {showBuyChips && <BuyChipsModal onClose={() => setShowBuyChips(false)} paymentAddress={paymentAddress} />}
+      {showBuyChips && <BuyChipsModal onClose={() => setShowBuyChips(false)} />}
       <div className="relative z-10 p-4 max-w-lg mx-auto">
         <header className="text-center mb-6">
           <h1 className="font-casino text-3xl font-black neon-text tracking-wider">Froog</h1>
@@ -219,15 +190,14 @@ function App() {
         </div>
 
         <div className="mb-6 flex gap-2 justify-center">
-          {wallet ? (
+          {connected ? (
             <div className="game-card text-center px-4 py-2">
               <span className="text-xs text-matrix-green/70">CONNECTED</span>
-              <p className="font-mono text-sm truncate max-w-[150px]">
-                {wallet.account.address.slice(0, 6)}...{wallet.account.address.slice(-4)}
-              </p>
+              <p className="font-mono text-sm truncate max-w-[150px]">{wallet.account.address.slice(0, 6)}...{wallet.account.address.slice(-4)}</p>
+              <button onClick={disconnect} className="btn-casino btn-ton mt-2">DISCONNECT TON WALLET</button>
             </div>
           ) : (
-            <button onClick={connectWallet} className="btn-casino btn-ton">CONNECT TON WALLET</button>
+            <button onClick={connect} className="btn-casino btn-ton">CONNECT TON WALLET</button>
           )}
           <button onClick={() => setShowLoyalty(!showLoyalty)} className="btn-casino btn-stars">LOYALTY CARD</button>
         </div>
@@ -236,10 +206,12 @@ function App() {
 
         <div className="text-center mb-6">
           <div className="inline-block game-card px-6 py-3">
-            {loading ? <span className="text-matrix-green/50 font-casino">LOADING...</span> : <>
-              <span className="text-casino-gold font-casino text-2xl">{balance.toLocaleString()} CHIPS</span>
-              {balance < 10 && <p className="text-xs text-red-400 mt-1">Low balance! Buy more chips</p>}
-            </>}
+            {loading ? <span className="text-matrix-green/50 font-casino">LOADING...</span> : (
+              <>
+                <span className="text-casino-gold font-casino text-2xl">{balance ? balance : '0'} CHIPS</span>
+                {balance < 10 && <p className="text-xs text-red-400 mt-1">Low balance! Buy more chips</p>}
+              </>
+            )}
           </div>
         </div>
 

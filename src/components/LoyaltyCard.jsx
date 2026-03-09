@@ -46,7 +46,7 @@ const LoyaltyCard = ({ onClose, onCredit }) => {
               <div className="absolute top-2 right-2 text-6xl">🐸</div>
             </div>
             <div className="relative">
-              <p className="text-xs text-yellow-200/70 text-left">MEMESEAL VIP</p>
+              <p className="text-xs text-yellow-200/70 text-left">Froog VIP</p>
               <div className="mt-4">
                 <input
                   type="text"
