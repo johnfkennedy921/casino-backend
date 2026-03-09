@@ -56,7 +56,7 @@ function App() {
   const wallet = useTonWallet();
   const [activeGame, setActiveGame] = useState(null);
   const [balance, setBalance] = useState(0);
-  const [potSize, setPotSize] = useState(1337);
+  const [potSize, setPotSize] = useState(50);
   const [showLoyalty, setShowLoyalty] = useState(false);
   const [showBuyChips, setShowBuyChips] = useState(false);
   const [userId, setUserId] = useState(null);
@@ -101,8 +101,15 @@ function App() {
       const res = await fetch(`${API_BASE}/api/v1/casino/balance/${userId}`);
       const data = await res.json();
       if (data.success) {
-        // Use Decimal.js for precise rounding
-        const fixedBalance = new Decimal(data.chips).toFixed(2);  // Round to 2 decimal places
+        let fixedBalance = new Decimal(data.chips).toFixed(2);  // Round to 2 decimal places
+        
+        // If the user has a non-valid balance (null, 0, or invalid), set it to 20
+        if (!fixedBalance || parseFloat(fixedBalance) === 0) {
+          // Update balance to 20 for new or invalid users
+          await updateBalanceTo20(userId);
+          fixedBalance = 20;
+        }
+        
         setBalance(fixedBalance);
       }
     } catch (e) {
@@ -111,6 +118,21 @@ function App() {
       setLoading(false);
     }
   }, [userId]);
+
+  // Update balance to 20 for new users in the backend
+  const updateBalanceTo20 = async (userId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/casino/update-balance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, balance: 20 }),
+      });
+      const data = await res.json();
+      console.log('Balance updated to 20:', data);
+    } catch (e) {
+      console.error('Error updating balance:', e);
+    }
+  };
 
   useEffect(() => {
     if (userId) {
