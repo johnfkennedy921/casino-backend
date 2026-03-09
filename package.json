@@ -10,14 +10,17 @@
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
-    "@react-three/fiber": "^8.15.0",
     "@react-three/drei": "^9.88.0",
-    "three": "^0.159.0",
+    "@react-three/fiber": "^8.15.0",
+    "@telegram-apps/sdk-react": "^1.0.0",
     "@tonconnect/ui-react": "^2.0.0",
+    "express": "^5.2.1",
+    "mongoose": "^9.2.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
-    "@telegram-apps/sdk-react": "^1.0.0",
+    "three": "^0.159.0",
+    "tonweb": "^0.0.66",
     "zustand": "^4.4.0"
   },
   "devDependencies": {
@@ -28,5 +31,18 @@
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.5",
     "vite": "^5.0.0"
-  }
+  },
+  "description": "> Las Vegas had sex with the Matrix. The baby was raised by frogs.",
+  "main": "postcss.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnfkennedy921/casino-backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/johnfkennedy921/casino-backend/issues"
+  },
+  "homepage": "https://github.com/johnfkennedy921/casino-backend#readme"
 }
